@@ -28,9 +28,10 @@ BOOKMARK_ICON_URL = "https://www.notion.so/icons/bookmark_gray.svg"
 class NotionHelper:
     database_name_dict = {
         "PODCAST_DATABASE_NAME": "Podcast",
-        "EPISODE_DATABASE_NAME": "Episode",
+        "EPISODE_DATABASE_NAME": "文献笔记",
         "ALL_DATABASE_NAME": "全部",
         "AUTHOR_DATABASE_NAME": "Author",
+        "DAY_DATABASE_NAME": "每日工作",
     }
     database_id_dict = {}
     image_dict = {}
@@ -54,6 +55,9 @@ class NotionHelper:
         self.all_database_id = self.database_id_dict.get(
             self.database_name_dict.get("ALL_DATABASE_NAME")
         )
+        self.day_database_id = self.database_id_dict.get(
+            self.database_name_dict.get("DAY_DATABASE_NAME")
+        )
 
     def extract_page_id(self, notion_url):
         # 正则表达式匹配 32 个字符的 Notion page_id
@@ -75,7 +79,7 @@ class NotionHelper:
 
             if child["type"] == "child_database":
                 self.database_id_dict[
-                    child.get("child_database").get("title")
+                    child.get("child_database").get("title").strip()
                 ] = child.get("id")
             # 如果子块有子块，递归调用函数
             if "has_children" in child and child["has_children"]:

@@ -7,10 +7,13 @@ import requests
 from notion_helper import NotionHelper
 import utils
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 DOUBAN_API_HOST = os.getenv("DOUBAN_API_HOST", "frodo.douban.com")
 DOUBAN_API_KEY = os.getenv("DOUBAN_API_KEY", "0ac44ae016490db2204ce0a042db2916")
+
+DATE_EMOJ_ICON = "🗓️"
 
 from config import (
     movie_properties_type_dict,
@@ -19,7 +22,6 @@ from config import (
 )
 from utils import get_icon
 
-
 headers = {
     "host": "api.xiaoyuzhoufm.com",
     "applicationid": "app.podcast.cosmos",
@@ -27,10 +29,10 @@ headers = {
     "x-jike-device-id": "5070e349-ba04-4c7b-a32e-13eb0fed01e7",
 }
 
-
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
 def refresh_token():
     url = "https://api.xiaoyuzhoufm.com/app_auth_tokens.refresh"
+    print(headers)
     resp = requests.post(url, headers=headers)
     if resp.ok:
         token = resp.json().get("x-jike-access-token")
@@ -111,6 +113,26 @@ def get_episode(pid, timestamp):
 
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
+def get_ep_progress(episode):
+    results = []
+    url = "https://api.xiaoyuzhoufm.com/v1/playback-progress/list"
+
+    data = {
+        "eids": [episode["BookId"]]
+    }
+    resp = requests.post(url, json=data, headers=headers)
+    if resp.ok:
+        d = resp.json().get("data")
+        playAt = d[0]["playedAt"];
+        playAtBeijingTime = pendulum.parse(playAt).in_tz('Asia/Shanghai')
+        playAtDay = playAtBeijingTime.format("YYYY-MM-DD")
+        episode["阅读日"] = [playAtDay]
+        episode["阅读时长"] = d[0]["progress"]
+    else:
+        raise Exception(f"Error {data} {resp.text}")
+
+
+@retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_history():
     results = []
     url = "https://api.xiaoyuzhoufm.com/v1/episode-played/list-history"
@@ -119,6 +141,7 @@ def get_history():
     }
     loadMoreKey = ""
     while loadMoreKey is not None:
+        print("get history....")
         if loadMoreKey:
             data["loadMoreKey"] = loadMoreKey
         resp = requests.post(url, json=data, headers=headers)
@@ -148,12 +171,12 @@ def check_podcast(pid):
 
 def check_eposide(eid):
     """检查是否已经插入过"""
-    filter = {"property": "Eid", "rich_text": {"equals": eid}}
+    filter = {"property": "BookId", "rich_text": {"equals": eid}}
     response = notion_helper.query(
         database_id=notion_helper.episode_database_id, filter=filter
     )
     if len(response["results"]) > 0:
-        return response["results"][0].get("id")
+        return response["results"][0]
 
 
 def get_timestamp(id):
@@ -178,7 +201,7 @@ def get_timestamp(id):
 
 def delete():
     """删除未听的"""
-    filter = {"property": "状态", "status": {"equals": "未听"}}
+    filter = {"property": "阅读状态", "status": {"equals": "想读"}}
     results = notion_helper.query_all(
         database_id=notion_helper.episode_database_id, filter=filter
     )
@@ -239,6 +262,9 @@ def insert_podcast():
         print(
             f"正在同步 = {result.get('title')}，共{len(results)}个播客，当前是第{index+1}个"
         )
+
+        #if index > 6:
+        #   break
         
         page_id = check_podcast(pid)
         if page_id:
@@ -259,23 +285,48 @@ def insert_episode(episodes, d):
             continue
         episode = {}
         episode["标题"] = result.get("title")
-        episode["Description"] = result.get("description")
-        episode["时间戳"] = result.get("pubDate")
+        episode["简介"] = result.get("description")
+        #episode["时间戳"] = result.get("pubDate")
         episode["发布时间"] = result.get("pubDate")
         episode["音频"] = result.get("media").get("source").get("url")
         eid = result.get("eid")
-        episode["Eid"] = eid
- 
+        episode["BookId"] = eid
+
+        if episode["标题"].find("投资人视角下的大模型和市场真实水温") == -1:
+            print("i'm here")
+
         episode["时长"] = result.get("duration")
         episode["喜欢"] = result.get("isPicked")
         episode["Podcast"] = [d.get(pid)[0]]
-        episode["链接"] = f"hhttps://www.xiaoyuzhoufm.com/episode/{result.get('eid')}"
+        episode["链接"] = f"https://www.xiaoyuzhoufm.com/episode/{result.get('eid')}"
         status = "未听"
         if result.get("isFinished"):
-            status = "听过"
+            status = "完成"
         elif result.get("isPlayed"):
-            status = "在听"
-        episode["状态"] = status
+            status = "在读"
+        episode["阅读状态"] = status
+        episode["类型"] = "播客"
+
+        # 获取当前episode的月度进度
+        try:
+            get_ep_progress(episode)
+        except Exception as e:
+            continue
+
+        episode["阅读进度"] = 1 if (status == "完成") else episode["阅读时长"] / episode["时长"]
+
+        episode['阅读日'] = [
+            notion_helper.get_relation_id(x, notion_helper.day_database_id, DATE_EMOJ_ICON)
+            for x in episode['阅读日']
+        ]
+
+        page = check_eposide(eid)
+        if page:
+            #若notion中存在当前ep，则进行属性合并
+            oldReadDays = [x["id"] for x in page['properties']['阅读日']["relation"]]
+            episode['阅读日'].extend(oldReadDays)
+
+
         properties = utils.get_properties(episode, book_properties_type_dict)
         print(
             f"正在同步 = {result.get('title')}，共{len(episodes)}个Episode，当前是第{index+1}个"
@@ -284,16 +335,18 @@ def insert_episode(episodes, d):
             "database_id": notion_helper.episode_database_id,
             "type": "database_id",
         }
-        page_id = check_eposide(eid)
-        if page_id:
+
+        if page:
+            page_id = page['id']
             notion_helper.update_page(page_id=page_id, properties=properties)
         else:
             notion_helper.create_page(
                 parent=parent, properties=properties, icon=get_icon(d.get(pid)[1])
             )
 
-
 if __name__ == "__main__":
+    current_time = datetime.now()
+    print("开始同步播客，当前时间: ", current_time)
     notion_helper = NotionHelper()
     refresh_token()
     d = insert_podcast()
