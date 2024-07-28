@@ -29,6 +29,7 @@ headers = {
     "x-jike-device-id": "5070e349-ba04-4c7b-a32e-13eb0fed01e7",
 }
 
+
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
 def refresh_token():
     url = "https://api.xiaoyuzhoufm.com/app_auth_tokens.refresh"
@@ -291,9 +292,6 @@ def insert_episode(episodes, d):
         episode["音频"] = result.get("media").get("source").get("url")
         eid = result.get("eid")
         episode["BookId"] = eid
-
-        if episode["标题"].find("投资人视角下的大模型和市场真实水温") == -1:
-            print("i'm here")
 
         episode["时长"] = result.get("duration")
         episode["喜欢"] = result.get("isPicked")
