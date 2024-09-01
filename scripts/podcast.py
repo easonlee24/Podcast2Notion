@@ -38,6 +38,7 @@ def refresh_token():
     if resp.ok:
         token = resp.json().get("x-jike-access-token")
         headers["x-jike-access-token"] = token
+    print(headers)
 
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
@@ -264,8 +265,8 @@ def insert_podcast():
             f"正在同步 = {result.get('title')}，共{len(results)}个播客，当前是第{index+1}个"
         )
 
-        #if index > 6:
-        #   break
+        if index >= 1:
+           break
         
         page_id = check_podcast(pid)
         if page_id:
@@ -305,7 +306,7 @@ def insert_episode(episodes, d):
         episode["阅读状态"] = status
         episode["类型"] = "播客"
 
-        # 获取当前episode的月度进度
+        # 获取当前episode的阅读进度
         try:
             get_ep_progress(episode)
         except Exception as e:
@@ -318,16 +319,21 @@ def insert_episode(episodes, d):
             for x in episode['阅读日']
         ]
 
+        delta_listen_time = int(episode['阅读时长'])
         page = check_eposide(eid)
         if page:
             #若notion中存在当前ep，则进行属性合并
             oldReadDays = [x["id"] for x in page['properties']['阅读日']["relation"]]
             episode['阅读日'].extend(oldReadDays)
+            delta_listen_time = int(episode['阅读时长']) - int(page['properties']['阅读时长']['number'])
 
+        if (delta_listen_time < 60 * 10): #本次收听时长小于10分钟，不同步
+            print(f"{result.get('title')}, 本次收听时长{delta_listen_time}秒，不同步。共{len(episodes)}个Episode，当前是第{index+1}个")
+            continue
 
         properties = utils.get_properties(episode, book_properties_type_dict)
         print(
-            f"正在同步 = {result.get('title')}，共{len(episodes)}个Episode，当前是第{index+1}个"
+            f"正在同步 = {result.get('title')}，本次收听{delta_listen_time}秒，共{len(episodes)}个Episode，当前是第{index+1}个"
         )
         parent = {
             "database_id": notion_helper.episode_database_id,
