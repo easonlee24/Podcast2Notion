@@ -265,8 +265,8 @@ def insert_podcast():
             f"正在同步 = {result.get('title')}，共{len(results)}个播客，当前是第{index+1}个"
         )
 
-        if index >= 1:
-           break
+        #if index >= 1:
+        #   break
         
         page_id = check_podcast(pid)
         if page_id:
