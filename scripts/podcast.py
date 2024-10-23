@@ -353,6 +353,7 @@ if __name__ == "__main__":
     print("开始同步播客，当前时间: ", current_time)
     notion_helper = NotionHelper()
     refresh_token()
+
     d = insert_podcast()
     episodes = get_history()
     insert_episode(episodes, d)
