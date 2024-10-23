@@ -28,9 +28,10 @@ BOOKMARK_ICON_URL = "https://www.notion.so/icons/bookmark_gray.svg"
 class NotionHelper:
     database_name_dict = {
         "PODCAST_DATABASE_NAME": "Podcast",
-        "EPISODE_DATABASE_NAME": "Episode",
+        "EPISODE_DATABASE_NAME": "文献笔记",
         "ALL_DATABASE_NAME": "全部",
         "AUTHOR_DATABASE_NAME": "Author",
+        "DAY_DATABASE_NAME": "日",
     }
     database_id_dict = {}
     image_dict = {}
@@ -54,6 +55,9 @@ class NotionHelper:
         self.all_database_id = self.database_id_dict.get(
             self.database_name_dict.get("ALL_DATABASE_NAME")
         )
+        self.day_database_id = self.database_id_dict.get(
+            self.database_name_dict.get("DAY_DATABASE_NAME")
+        )
 
     def extract_page_id(self, notion_url):
         # 正则表达式匹配 32 个字符的 Notion page_id
@@ -75,7 +79,7 @@ class NotionHelper:
 
             if child["type"] == "child_database":
                 self.database_id_dict[
-                    child.get("child_database").get("title")
+                    child.get("child_database").get("title").strip()
                 ] = child.get("id")
             # 如果子块有子块，递归调用函数
             if "has_children" in child and child["has_children"]:
@@ -156,7 +160,23 @@ class NotionHelper:
         self.__cache[key] = page_id
         return page_id
 
-
+    @retry(stop_max_attempt_number=3, wait_fixed=5000)
+    def get_relation_id_by_property(self, property_name, property_value, property_type, id, icon, properties={}):
+        key = f"{id}{property_name}-{property_value}"
+        if key in self.__cache:
+            return self.__cache.get(key)
+        filter = {"property": property_name, property_type: {"equals": property_value}}
+        response = self.client.databases.query(database_id=id, filter=filter)
+        if len(response.get("results")) == 0:
+            parent = {"database_id": id, "type": "database_id"}
+            properties["标题"] = get_title(name)
+            page_id = self.client.pages.create(
+                parent=parent, properties=properties, icon=get_icon(icon)
+            ).get("id")
+        else:
+            page_id = response.get("results")[0].get("id")
+        self.__cache[key] = page_id
+        return page_id
 
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
     def update_book_page(self, page_id, properties):

@@ -12,16 +12,20 @@ MULTI_SELECT = "multi_select"
 
 book_properties_type_dict = {
     "标题": TITLE,
-    "Description": RICH_TEXT,
+    "简介": RICH_TEXT,
     "音频": RICH_TEXT,
-    "Eid": RICH_TEXT,
+    "BookId": RICH_TEXT,
     "链接": URL,
     "发布时间": DATE,
     "时长": NUMBER,
+    "阅读时长":NUMBER,
     "时间戳": NUMBER,
-    "状态": STATUS,
+    "阅读状态": STATUS,
+    "阅读进度":NUMBER,
     "Podcast": RELATION,
-        "喜欢": CHECKBOX,
+    "类型":SELECT,
+    "喜欢": CHECKBOX,
+    "阅读日": RELATION
 }
 
 TAG_ICON_URL = "https://www.notion.so/icons/hourglass_gray.svg"
