@@ -31,7 +31,7 @@ class NotionHelper:
         "EPISODE_DATABASE_NAME": "文献笔记",
         "ALL_DATABASE_NAME": "全部",
         "AUTHOR_DATABASE_NAME": "Author",
-        "DAY_DATABASE_NAME": "每日工作",
+        "DAY_DATABASE_NAME": "日",
     }
     database_id_dict = {}
     image_dict = {}
@@ -160,7 +160,23 @@ class NotionHelper:
         self.__cache[key] = page_id
         return page_id
 
-
+    @retry(stop_max_attempt_number=3, wait_fixed=5000)
+    def get_relation_id_by_property(self, property_name, property_value, property_type, id, icon, properties={}):
+        key = f"{id}{property_name}-{property_value}"
+        if key in self.__cache:
+            return self.__cache.get(key)
+        filter = {"property": property_name, property_type: {"equals": property_value}}
+        response = self.client.databases.query(database_id=id, filter=filter)
+        if len(response.get("results")) == 0:
+            parent = {"database_id": id, "type": "database_id"}
+            properties["标题"] = get_title(name)
+            page_id = self.client.pages.create(
+                parent=parent, properties=properties, icon=get_icon(icon)
+            ).get("id")
+        else:
+            page_id = response.get("results")[0].get("id")
+        self.__cache[key] = page_id
+        return page_id
 
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
     def update_book_page(self, page_id, properties):

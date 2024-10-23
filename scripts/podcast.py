@@ -287,7 +287,7 @@ def insert_episode(episodes, d):
             continue
         episode = {}
         episode["标题"] = result.get("title")
-        episode["简介"] = result.get("description")
+        #episode["简介"] = result.get("description")
         #episode["时间戳"] = result.get("pubDate")
         episode["发布时间"] = result.get("pubDate")
         episode["音频"] = result.get("media").get("source").get("url")
@@ -295,7 +295,7 @@ def insert_episode(episodes, d):
         episode["BookId"] = eid
 
         episode["时长"] = result.get("duration")
-        episode["喜欢"] = result.get("isPicked")
+        #episode["喜欢"] = result.get("isPicked")
         episode["Podcast"] = [d.get(pid)[0]]
         episode["链接"] = f"https://www.xiaoyuzhoufm.com/episode/{result.get('eid')}"
         status = "未听"
@@ -315,7 +315,7 @@ def insert_episode(episodes, d):
         episode["阅读进度"] = 1 if (status == "完成") else episode["阅读时长"] / episode["时长"]
 
         episode['阅读日'] = [
-            notion_helper.get_relation_id(x, notion_helper.day_database_id, DATE_EMOJ_ICON)
+            notion_helper.get_relation_id_by_property("【兼容】日期", x, "date", notion_helper.day_database_id, DATE_EMOJ_ICON)
             for x in episode['阅读日']
         ]
 
