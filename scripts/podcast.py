@@ -357,4 +357,5 @@ if __name__ == "__main__":
     d = insert_podcast()
     episodes = get_history()
     insert_episode(episodes, d)
-    delete()
+    #这里会误删"想看"状态的文献笔记
+    #delete()
