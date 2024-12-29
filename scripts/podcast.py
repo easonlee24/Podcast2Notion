@@ -300,7 +300,7 @@ def insert_episode(episodes, d):
         episode["链接"] = f"https://www.xiaoyuzhoufm.com/episode/{result.get('eid')}"
         status = "未听"
         if result.get("isFinished"):
-            status = "完成"
+            status = "阅读完"
         elif result.get("isPlayed"):
             status = "在读"
         episode["阅读状态"] = status
