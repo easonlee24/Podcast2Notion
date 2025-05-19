@@ -133,6 +133,13 @@ def get_ep_progress(episode):
     else:
         raise Exception(f"Error {data} {resp.text}")
 
+def get_progress(eids):
+    """获取播放进度"""
+    url = "https://api.xiaoyuzhoufm.com/v1/playback-progress/list"
+    data = {"eids": eids}
+    resp = requests.post(url, json=data, headers=headers)
+    if resp.ok:
+        return resp.json().get("data")
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_history():
@@ -306,18 +313,16 @@ def insert_episode(episodes, d):
         episode["阅读状态"] = status
         episode["类型"] = "播客"
 
-        # 获取当前episode的阅读进度
-        try:
-            get_ep_progress(episode)
-        except Exception as e:
-            continue
-
         episode["阅读进度"] = 1 if (status == "完成") else episode["阅读时长"] / episode["时长"]
 
         episode['阅读日'] = [
             notion_helper.get_relation_id_by_property("【兼容】日期", x, "date", notion_helper.day_database_id, DATE_EMOJ_ICON)
             for x in episode['阅读日']
         ]
+
+        if (delta_listen_time < 60 * 10): #本次收听时长小于10分钟，不同步
+            print(f"{result.get('title')}, 本次收听时长{delta_listen_time}秒，不同步。共{len(episodes)}个Episode，当前是第{index+1}个")
+            continue
 
         delta_listen_time = int(episode['阅读时长'])
         page = check_eposide(eid)
@@ -326,10 +331,6 @@ def insert_episode(episodes, d):
             oldReadDays = [x["id"] for x in page['properties']['阅读日']["relation"]]
             episode['阅读日'].extend(oldReadDays)
             delta_listen_time = int(episode['阅读时长']) - int(page['properties']['阅读时长']['number'])
-
-        if (delta_listen_time < 60 * 10): #本次收听时长小于10分钟，不同步
-            print(f"{result.get('title')}, 本次收听时长{delta_listen_time}秒，不同步。共{len(episodes)}个Episode，当前是第{index+1}个")
-            continue
 
         properties = utils.get_properties(episode, book_properties_type_dict)
         print(
@@ -356,6 +357,21 @@ if __name__ == "__main__":
 
     d = insert_podcast()
     episodes = get_history()
+    eids = [x.get("eid") for x in episodes]
+    progress = get_progress(eids)
+    progress = {x.get("eid"): x for x in progress}
+    print("阅读进度------")
+    print(json.dumps(progress))
+    for episode in episodes:
+        if episode["eid"] in progress:
+            playAt = progress.get(episode["eid"]).get("playedAt")
+            playAtBeijingTime = pendulum.parse(playAt).in_tz('Asia/Shanghai')
+            playAtDay = playAtBeijingTime.format("YYYY-MM-DD")
+            episode["阅读日"] = [playAtDay]
+            episode["阅读时长"] = progress.get(episode["eid"]).get("progress")
+        else:
+            episode["阅读时长"] = 0
     insert_episode(episodes, d)
+    # 测试
     #这里会误删"想看"状态的文献笔记
     #delete()
