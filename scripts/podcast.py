@@ -318,7 +318,7 @@ def insert_episode(episodes, d):
 
         episode["阅读进度"] = 1 if (status == "完成") else episode["阅读时长"] / episode["时长"]
 
-        if '阅读日' in episode:
+        if "阅读日" in episode and isinstance(episode["阅读日"], list) and episode["阅读日"]:
             episode['阅读日'] = [
                 notion_helper.get_relation_id_by_property("【兼容】日期", x, "date", notion_helper.day_database_id, DATE_EMOJ_ICON)
                 for x in episode['阅读日']
