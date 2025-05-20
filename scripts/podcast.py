@@ -313,12 +313,17 @@ def insert_episode(episodes, d):
         episode["阅读状态"] = status
         episode["类型"] = "播客"
 
+        episode["阅读时长"] = result.get("阅读时长")
+        episode["阅读日"] = result.get("阅读日")
+
         episode["阅读进度"] = 1 if (status == "完成") else episode["阅读时长"] / episode["时长"]
 
         episode['阅读日'] = [
             notion_helper.get_relation_id_by_property("【兼容】日期", x, "date", notion_helper.day_database_id, DATE_EMOJ_ICON)
             for x in episode['阅读日']
         ]
+
+        print("处理当前博客：" + json.dumps(episode))
 
         if (delta_listen_time < 60 * 10): #本次收听时长小于10分钟，不同步
             print(f"{result.get('title')}, 本次收听时长{delta_listen_time}秒，不同步。共{len(episodes)}个Episode，当前是第{index+1}个")
