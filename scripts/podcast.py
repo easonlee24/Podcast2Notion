@@ -327,7 +327,7 @@ def insert_episode(episodes, d):
         print("处理当前博客：" + json.dumps(episode))
 
         delta_listen_time = int(episode['阅读时长'])
-        if (delta_listen_time < 60 * 10): #本次收听时长小于10分钟，不同步
+        if (delta_listen_time < 60 * 2): #本次收听时长小于2分钟，不同步
             print(f"{result.get('title')}, 本次收听时长{delta_listen_time}秒，不同步。共{len(episodes)}个Episode，当前是第{index+1}个")
             continue
 
